@@ -3,9 +3,10 @@
 #include <signal.h>
 #include <time.h>
 
+volatile sig_atomic_t interrupted = 0;
+
 void sigint_handler(int signum) {
-    printf("Interrupt signal received. Exiting...\n");
-    exit(1);
+    interrupted = 1;
 }
 
 int main() {
@@ -20,19 +21,14 @@ int main() {
 
     printf("Sleeping for 2 seconds and 500 milliseconds...\n");
 
-    // Call nanosleep() with the defined time
-    int result = nanosleep(&req, &rem);
-
-    // Check if nanosleep() encountered an error
-    if (result == -1) {
-        printf("nanosleep() failed.\n");
-        return 1;
+    // Loop until the sleep time is completed or interrupted
+    while (nanosleep(&req, &rem) && !interrupted) {
+        // If nanosleep is interrupted by a signal, print remaining time and retry
+        printf("Sleep interrupted. Remaining time: %ld seconds %ld nanoseconds.\n", rem.tv_sec, rem.tv_nsec);
+        req = rem; // Adjust the sleep time to the remaining time
     }
 
-    // If nanosleep() was interrupted, print remaining time
-    if (result == 0 && rem.tv_sec > 0) {
-        printf("Sleep interrupted. Remaining time: %ld seconds %ld nanoseconds.\n", rem.tv_sec, rem.tv_nsec);
-    } else {
+    if (!interrupted) {
         printf("Sleep completed.\n");
     }
 
